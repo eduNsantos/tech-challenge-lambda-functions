@@ -28,23 +28,19 @@ Design completo: [`docs/superpowers/specs/2026-08-18-auth-lambda-design.md`](doc
 | `db_password` | Senha do MySQL — **igual** à usada em `tech-challenge-database` |
 | `jwt_secret` | Segredo de assinatura JWT — **igual** ao `JWT_SECRET` da aplicação Laravel |
 
-Passe-as via `-var`, um arquivo `*.tfvars` não versionado, ou variáveis de
-ambiente `TF_VAR_*`. Nunca commite esses valores.
+Copie [`terraform.tfvars.example`](terraform.tfvars.example) para
+`terraform.tfvars` (já gitignored) e preencha os valores reais — o
+Terraform carrega esse arquivo automaticamente, sem precisar de `-var` em
+cada comando. Nunca commite `terraform.tfvars` com valores reais.
 
 ## Aplicar
 
 ```bash
+cp terraform.tfvars.example terraform.tfvars
+# edite terraform.tfvars com os valores reais
 terraform init
-terraform plan \
-  -var "db_name=..." \
-  -var "db_user=..." \
-  -var "db_password=..." \
-  -var "jwt_secret=..."
-terraform apply \
-  -var "db_name=..." \
-  -var "db_user=..." \
-  -var "db_password=..." \
-  -var "jwt_secret=..."
+terraform plan
+terraform apply
 ```
 
 Após o apply, o output `login_url` traz a URL completa do endpoint.

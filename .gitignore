@@ -5,3 +5,5 @@ node_modules/
 *.tfstate.*
 build/
 *.zip
+*.tfvars
+!*.tfvars.example
