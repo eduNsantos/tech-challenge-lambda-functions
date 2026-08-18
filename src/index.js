@@ -19,7 +19,7 @@ function createHandler(getDeps) {
   return async function handler(event) {
     let parsedBody;
     try {
-      parsedBody = JSON.parse(event.body || '{}');
+      parsedBody = JSON.parse(event.body || '{}') ?? {};
     } catch {
       return response(400, { message: 'body inválido' });
     }
@@ -65,7 +65,8 @@ async function getRealDeps() {
   return {
     classifyIdentifier,
     userRepository: createUserRepository(pool),
-    comparePassword: (plain, hash) => bcrypt.compareSync(plain, hash),
+    comparePassword: (plain, hash) =>
+      typeof hash === 'string' && bcrypt.compareSync(plain, hash),
     tokenSigner,
   };
 }

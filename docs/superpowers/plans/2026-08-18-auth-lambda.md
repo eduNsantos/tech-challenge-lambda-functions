@@ -16,7 +16,7 @@
 - RDS discovery uses **data sources by tag** (`main` VPC, `sub_a`/`sub_b` subnets, `rds` security group) and `data "aws_db_instance"` by a fixed `identifier` — never `terraform_remote_state` (the other repo has no remote backend).
 - The RDS `identifier` this repo looks up is `"tech-challenge-db"` — depends on the one-line change requested in `REQUEST-TO-DATABASE-REPO.md` (already committed at repo root). Until that change lands upstream, `terraform apply`/`plan` will fail to find the instance — this plan's tasks only run `terraform validate`/`fmt`, which don't call AWS, so this dependency does not block implementation.
 - `users` table schema is fixed: `id`, `email`, `document` (digits only, 11 for CPF), `password` (bcrypt `$2y$`), `role`. Do not invent columns.
-- JWT claims must match `php-open-source-saver/jwt-auth` defaults exactly: `sub` (user id, integer), `iat`, `nbf`, `exp` (= `iat` + 3600s), `jti` (random), `iss`, `prv` (`sha1('App\Models\User')`), plus custom claim `user_id` (= `sub`). Signed HS256 with the shared `jwt_secret`, using `noTimestamp: true` since `iat` is set manually.
+- JWT claims must match `php-open-source-saver/jwt-auth` defaults exactly: `sub` (user id, integer), `iat`, `nbf`, `exp` (= `iat` + 3600s), `jti` (random), `iss`, `prv` (`sha1('App\Models\User')`), plus custom claim `user_id` (= `sub`). Signed HS256 with the shared `jwt_secret`. Do **not** pass `noTimestamp: true` to `jwt.sign` — with a manually-set `iat` already in the payload, `noTimestamp: true` in the real `jsonwebtoken` library *deletes* that `iat` claim from the payload before signing (it does not merely skip auto-generating one), and `iat` is a required claim for `php-open-source-saver/jwt-auth` to accept the token. `iat` must be signed exactly as set on the payload.
 - Success response: `200 { "access_token": "<jwt>", "token_type": "bearer" }`. Failure (bad credentials or user not found): `401 { "message": "Credenciais inválidas" }` — never distinguish "user not found" from "wrong password" in the response.
 - Password verification via `bcryptjs` (pure-JS, handles `$2y$`/`$2b$`/`$2a$` uniformly — no native module to cross-compile for the Lambda zip).
 - Lambda packaging: `data.archive_file` zipping `src/` (which includes its own `node_modules` after `npm install`), excluding `src/test/`, no external build pipeline.
@@ -268,7 +268,6 @@ function createTokenSigner(jwtSecret, issuer) {
 
       return jwt.sign(payload, jwtSecret, {
         algorithm: 'HS256',
-        noTimestamp: true,
       });
     },
   };
@@ -276,6 +275,13 @@ function createTokenSigner(jwtSecret, issuer) {
 
 module.exports = { createTokenSigner, TOKEN_TTL_SECONDS };
 ```
+
+> **Do not add `noTimestamp: true` here.** The payload already sets `iat`
+> manually. In the real `jsonwebtoken` library, `noTimestamp: true`
+> *deletes* the `iat` claim from the payload before signing — it does not
+> just skip auto-generating one — so the resulting token would have no
+> `iat` claim at all. `php-open-source-saver/jwt-auth` requires `iat` to
+> accept a token, so this option must be omitted.
 
 - [ ] **Step 4: Run test to verify it passes**
 

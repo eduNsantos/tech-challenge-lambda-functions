@@ -8,6 +8,7 @@ function createPool({ host, port, user, password, database }) {
     password,
     database,
     connectionLimit: 2,
+    connectTimeout: 5000,
   });
 }
 

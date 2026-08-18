@@ -81,6 +81,20 @@ vai usar. Avisaremos o ID/nome desse SG assim que este repositório for
 aplicado pela primeira vez — pode ser necessário um ajuste de ingress
 aqui depois disso.
 
+## DNS da VPC
+
+O Lambda de autenticação usa um VPC Interface Endpoint para o Secrets
+Manager com `private_dns_enabled = true` (recurso
+`aws_vpc_endpoint.secretsmanager`, criado no repositório
+`tech-challenge-lambda-functions`). Para que o DNS privado desse endpoint
+funcione, a VPC `main` que vocês criam (tag `Name = "main"`) precisa ter
+os atributos `enableDnsSupport = true` e `enableDnsHostnames = true`
+habilitados. Esses são atributos no nível da VPC, então só podem ser
+ajustados por vocês, no repositório `tech-challenge-database` onde ela é
+criada — `tech-challenge-lambda-functions` só a referencia via `data
+source` e não pode habilitá-los. Sem os dois habilitados, o `terraform
+apply` de `tech-challenge-lambda-functions` falha ao criar o endpoint.
+
 ## Senha do banco
 
 O Lambda vai precisar da mesma senha configurada em `var.db_password`
