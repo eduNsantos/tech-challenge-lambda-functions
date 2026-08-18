@@ -10,30 +10,31 @@ Design completo: [`docs/superpowers/specs/2026-08-18-auth-lambda-design.md`](doc
 
 ## Pré-requisitos antes do primeiro deploy
 
-1. **`tech-challenge-database`**: precisa de um `identifier` fixo na
-   instância RDS. Além disso, o Security Group da RDS (tag `Name = "rds"`)
-   pode precisar de uma regra de ingress adicional admitindo o Security
-   Group deste Lambda, caso o ingress atual não libere todo o CIDR da VPC
-   (detalhado na seção "Segurança do Security Group" de
-   [`REQUEST-TO-DATABASE-REPO.md`](REQUEST-TO-DATABASE-REPO.md)). Este
-   repositório **não** gerencia essas regras — ele só tem uma referência
-   `data` ao Security Group `rds`, nunca um `resource`, exatamente para
-   não correr o risco de reverter ou conflitar com regras adicionadas no
-   outro repositório. Ver [`REQUEST-TO-DATABASE-REPO.md`](REQUEST-TO-DATABASE-REPO.md).
+1. **`tech-challenge-database`**: ✅ `identifier` fixo e regra de ingress
+   temporária (libera 3306 para todo o CIDR da VPC) já implementados na
+   branch `development`,
+   [PR aberto](https://github.com/eduNsantos/tech-challenge-database/pull/1).
+   Falta mergear/aplicar. Este repositório **não** gerencia o Security
+   Group da RDS — ele só tem uma referência `data`, nunca um `resource`,
+   exatamente para não correr o risco de reverter ou conflitar com regras
+   adicionadas no outro repositório. Ver
+   [`REQUEST-TO-DATABASE-REPO.md`](REQUEST-TO-DATABASE-REPO.md).
 2. **`tech-challenge-application`**: precisa apontar para essa mesma RDS,
    ter rodado `php artisan migrate` nela, e ter um `JWT_SECRET` definido.
    Ver [`REQUEST-TO-APPLICATION-REPO.md`](REQUEST-TO-APPLICATION-REPO.md).
 3. AWS CLI configurado com credenciais que tenham permissão para criar VPC
    endpoint, Security Group, Secrets Manager secret, IAM role, Lambda e API
    Gateway na região alvo.
-4. A VPC referenciada por `data.aws_vpc.main` (tag `Name = "main"`, criada
-   no repositório `tech-challenge-database`) precisa ter os atributos
-   `enableDnsSupport = true` e `enableDnsHostnames = true` habilitados.
-   Esses são atributos no nível da VPC — este repositório só a referencia
-   via `data source` em `data.tf` e não pode habilitá-los. Sem os dois
-   habilitados, o `terraform apply` falha ao criar o
-   `aws_vpc_endpoint.secretsmanager` (em `network.tf`) com
-   `private_dns_enabled = true`.
+4. A VPC referenciada por `data.aws_vpc.main` (tag `Name = "main"`)
+   precisa ter os atributos `enableDnsSupport = true` e
+   `enableDnsHostnames = true` habilitados — sem os dois, o
+   `terraform apply` falha ao criar o `aws_vpc_endpoint.secretsmanager`
+   (em `network.tf`) com `private_dns_enabled = true`. Essa VPC não é
+   criada nem por este repositório nem por `tech-challenge-database`
+   (ambos só a referenciam via `data source`) — provavelmente já existe
+   assim fora de qualquer um dos dois repos. Vale conferir direto no
+   Console da AWS antes do primeiro apply; a maioria das VPCs já vem com
+   isso habilitado por padrão.
 
 ## Variáveis obrigatórias
 

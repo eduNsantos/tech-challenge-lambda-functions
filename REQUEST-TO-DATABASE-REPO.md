@@ -1,5 +1,24 @@
 # Pedido de alteração — repositório `tech-challenge-database`
 
+## Status (2026-08-18)
+
+- ✅ **`identifier` fixo**: implementado na branch `development`, PR
+  ["Add fixed RDS identifier and default MySQL ingress rule"](https://github.com/eduNsantos/tech-challenge-database/pull/1)
+  aberto. `identifier = "tech-challenge-db"` bate exatamente com o que
+  este repositório espera (`var.db_identifier` em `variables.tf`).
+- ✅ **Ingress do Security Group `rds`**: o mesmo PR adiciona uma regra
+  de ingress liberando a porta 3306 para todo o CIDR da VPC, como
+  default temporário, até sabermos o Security Group específico do
+  Lambda. Suficiente por enquanto — pode ser restringido depois (ver
+  seção abaixo).
+- ⚠️ **DNS da VPC**: a seção original abaixo atribuía essa
+  responsabilidade a este repositório por engano — corrigido mais
+  abaixo. Provavelmente não exige nenhuma ação (ver nota).
+- ⏳ Falta: mergear/aplicar o PR acima para a RDS existir de fato com o
+  identifier fixo.
+
+---
+
 Este repositório (`tech-challenge-lambda-functions`) precisa localizar a
 instância RDS criada por vocês via Terraform (`data source`), para que o
 Lambda de autenticação consiga descobrir o endpoint de conexão sem
@@ -72,28 +91,32 @@ nem de outputs adicionais.
 
 ## Segurança do Security Group
 
-O Lambda de autenticação vai rodar na mesma VPC (`data.aws_vpc` filtrada
-pela tag `Name = "main"`) e vai precisar alcançar a porta 3306 da RDS.
-Se o Security Group `rds` (tag `Name = "rds"`) só libera ingress de
-origens específicas (em vez de todo o CIDR da VPC), será necessário
-adicionar uma regra de ingress permitindo o Security Group que a Lambda
-vai usar. Avisaremos o ID/nome desse SG assim que este repositório for
-aplicado pela primeira vez — pode ser necessário um ajuste de ingress
-aqui depois disso.
+**Resolvido por enquanto** — o PR já citado no Status abre a porta 3306
+para todo o CIDR da VPC como default temporário, então a conectividade
+do Lambda com a RDS já está coberta.
 
-## DNS da VPC
+Quando o Lambda de `tech-challenge-lambda-functions` for aplicado pela
+primeira vez e tivermos o ID do Security Group dele, pode valer a pena
+restringir essa regra para admitir só esse SG específico, em vez do CIDR
+inteiro da VPC — mais por princípio de menor privilégio do que por
+necessidade funcional imediata. Não é bloqueante.
 
-O Lambda de autenticação usa um VPC Interface Endpoint para o Secrets
-Manager com `private_dns_enabled = true` (recurso
-`aws_vpc_endpoint.secretsmanager`, criado no repositório
-`tech-challenge-lambda-functions`). Para que o DNS privado desse endpoint
-funcione, a VPC `main` que vocês criam (tag `Name = "main"`) precisa ter
-os atributos `enableDnsSupport = true` e `enableDnsHostnames = true`
-habilitados. Esses são atributos no nível da VPC, então só podem ser
-ajustados por vocês, no repositório `tech-challenge-database` onde ela é
-criada — `tech-challenge-lambda-functions` só a referencia via `data
-source` e não pode habilitá-los. Sem os dois habilitados, o `terraform
-apply` de `tech-challenge-lambda-functions` falha ao criar o endpoint.
+## DNS da VPC — correção
+
+**Isto foi documentado errado na primeira versão deste pedido.** A VPC
+`main` não é criada por este repositório — `data.tf` aqui também só a
+referencia via `data source` (`data "aws_vpc" "main"` filtrando por tag),
+exatamente como `tech-challenge-lambda-functions` faz. Ou seja,
+**nenhum dos dois repositórios é dono da VPC** para poder habilitar
+`enableDnsSupport`/`enableDnsHostnames` nela via Terraform.
+
+Essa VPC provavelmente já existe fora de qualquer um desses repositórios
+(criada manualmente no Console da AWS, ou por infraestrutura
+compartilhada da conta/curso). Vale a pena checar diretamente no Console
+(VPC → a VPC com tag `Name = "main"` → "Edit VPC settings") se os dois
+atributos já estão habilitados — a maioria das VPCs (inclusive a VPC
+default de qualquer conta AWS) já vem com isso ligado por padrão, então é
+provável que nenhuma ação seja necessária aqui.
 
 ## Senha do banco
 
