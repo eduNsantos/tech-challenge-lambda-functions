@@ -19,7 +19,8 @@
 - JWT claims must match `php-open-source-saver/jwt-auth` defaults exactly: `sub` (user id, integer), `iat`, `nbf`, `exp` (= `iat` + 3600s), `jti` (random), `iss`, `prv` (`sha1('App\Models\User')`), plus custom claim `user_id` (= `sub`). Signed HS256 with the shared `jwt_secret`, using `noTimestamp: true` since `iat` is set manually.
 - Success response: `200 { "access_token": "<jwt>", "token_type": "bearer" }`. Failure (bad credentials or user not found): `401 { "message": "Credenciais inválidas" }` — never distinguish "user not found" from "wrong password" in the response.
 - Password verification via `bcryptjs` (pure-JS, handles `$2y$`/`$2b$`/`$2a$` uniformly — no native module to cross-compile for the Lambda zip).
-- Lambda packaging: `data.archive_file` zipping `src/` (which includes its own `node_modules` after `npm install`), no external build pipeline.
+- Lambda packaging: `data.archive_file` zipping `src/` (which includes its own `node_modules` after `npm install`), excluding `src/test/`, no external build pipeline.
+- Tests live under `src/test/` (nested inside `src/`, not a repo-root-level sibling) so that `require()` calls inside test files — including ones that `require()` an npm package directly, like `jsonwebtoken` in `token.test.js` — resolve against `src/node_modules` through normal Node module resolution (which walks up from the requiring file's own directory, not from `process.cwd()`). A repo-root-level `test/` directory cannot see `src/node_modules` this way; an earlier iteration of this plan tried that layout and needed an undocumented, uncommitted symlink to work around it — that was a plan defect caught in Task 4's review, not a valid pattern to repeat.
 - No dependency-mocking library (sinon, proxyquire, jest) — all modules are designed with plain dependency injection so `node:test` + `node:assert/strict` mocks are enough.
 - Deviation from the spec's original file list: this plan adds `network.tf` (not listed in the spec) to hold the Lambda's security group, the Secrets Manager VPC endpoint, and its security group — needed because the Lambda sits in a private subnet and has no other route to Secrets Manager. This is called out explicitly in Task 12.
 
@@ -29,7 +30,7 @@
 
 **Files:**
 - Create: `.gitignore`
-- Create (empty dirs via `.gitkeep` not needed — created implicitly by later tasks): `src/`, `test/`
+- Create (empty dirs via `.gitkeep` not needed — created implicitly by later tasks): `src/`, `src/test/`
 
 **Interfaces:** None (no code yet).
 
@@ -60,7 +61,7 @@ git commit -m "chore: add gitignore for terraform and node artifacts"
 - Create (generated): `src/package-lock.json`, `src/node_modules/` (gitignored)
 
 **Interfaces:**
-- Produces: an `npm test` script runnable from `src/` that runs `node --test ../test/`.
+- Produces: an `npm test` script runnable from `src/` that runs `node --test 'test/*.test.js'` (matching `src/test/*.test.js`).
 
 - [ ] **Step 1: Create `src/package.json`**
 
@@ -74,7 +75,7 @@ git commit -m "chore: add gitignore for terraform and node artifacts"
     "node": ">=24"
   },
   "scripts": {
-    "test": "node --test ../test/"
+    "test": "node --test 'test/*.test.js'"
   },
   "dependencies": {
     "mysql2": "^3.11.0",
@@ -108,19 +109,19 @@ git commit -m "chore: add lambda package manifest and dependencies"
 
 **Files:**
 - Create: `src/identifier.js`
-- Test: `test/identifier.test.js`
+- Test: `src/test/identifier.test.js`
 
 **Interfaces:**
 - Produces: `classifyIdentifier(rawIdentifier: string) -> { field: 'document' | 'email', value: string }` — `value` for `document` is digits-only; for `email` it's the original string unchanged.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/identifier.test.js`:
+Create `src/test/identifier.test.js`:
 
 ```js
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { classifyIdentifier } = require('../src/identifier');
+const { classifyIdentifier } = require('../identifier');
 
 test('classifies an 11-digit CPF as document', () => {
   const result = classifyIdentifier('12345678901');
@@ -174,7 +175,7 @@ Expected: PASS — 4 tests passing.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/identifier.js test/identifier.test.js
+git add src/identifier.js src/test/identifier.test.js
 git commit -m "feat: classify login identifier as CPF document or email"
 ```
 
@@ -184,21 +185,21 @@ git commit -m "feat: classify login identifier as CPF document or email"
 
 **Files:**
 - Create: `src/token.js`
-- Test: `test/token.test.js`
+- Test: `src/test/token.test.js`
 
 **Interfaces:**
 - Produces: `createTokenSigner(jwtSecret: string, issuer: string) -> { sign(userId: number) -> string }` and `TOKEN_TTL_SECONDS` (number, `3600`).
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/token.test.js`:
+Create `src/test/token.test.js`:
 
 ```js
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
 const crypto = require('node:crypto');
-const { createTokenSigner, TOKEN_TTL_SECONDS } = require('../src/token');
+const { createTokenSigner, TOKEN_TTL_SECONDS } = require('../token');
 
 test('signs a token with the claims php-open-source-saver/jwt-auth expects', () => {
   const signer = createTokenSigner('test-secret', 'https://api.example.com/login');
@@ -284,7 +285,7 @@ Expected: PASS — 7 tests passing (4 from Task 3 + 3 here).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/token.js test/token.test.js
+git add src/token.js src/test/token.test.js
 git commit -m "feat: sign JWTs compatible with php-open-source-saver/jwt-auth"
 ```
 
@@ -294,7 +295,7 @@ git commit -m "feat: sign JWTs compatible with php-open-source-saver/jwt-auth"
 
 **Files:**
 - Create: `src/userRepository.js`
-- Test: `test/userRepository.test.js`
+- Test: `src/test/userRepository.test.js`
 
 **Interfaces:**
 - Consumes: a `pool`-like object with an async `execute(sql, params) -> Promise<[rows]>` method (the shape `mysql2/promise` pools implement).
@@ -302,12 +303,12 @@ git commit -m "feat: sign JWTs compatible with php-open-source-saver/jwt-auth"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/userRepository.test.js`:
+Create `src/test/userRepository.test.js`:
 
 ```js
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createUserRepository } = require('../src/userRepository');
+const { createUserRepository } = require('../userRepository');
 
 function fakePool(rows) {
   return {
@@ -398,7 +399,7 @@ Expected: PASS — 11 tests passing.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/userRepository.js test/userRepository.test.js
+git add src/userRepository.js src/test/userRepository.test.js
 git commit -m "feat: add parameterized user lookup by document or email"
 ```
 
@@ -408,7 +409,7 @@ git commit -m "feat: add parameterized user lookup by document or email"
 
 **Files:**
 - Create: `src/secretsLoader.js`
-- Test: `test/secretsLoader.test.js`
+- Test: `src/test/secretsLoader.test.js`
 
 **Interfaces:**
 - Consumes: a `client`-like object with an async `send(command) -> Promise<{SecretString: string}>` method (the shape `@aws-sdk/client-secrets-manager`'s `SecretsManagerClient` implements).
@@ -416,12 +417,12 @@ git commit -m "feat: add parameterized user lookup by document or email"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/secretsLoader.test.js`:
+Create `src/test/secretsLoader.test.js`:
 
 ```js
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createSecretsLoader } = require('../src/secretsLoader');
+const { createSecretsLoader } = require('../secretsLoader');
 
 function fakeClient(secretString) {
   return {
@@ -491,7 +492,7 @@ Expected: PASS — 13 tests passing.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/secretsLoader.js test/secretsLoader.test.js
+git add src/secretsLoader.js src/test/secretsLoader.test.js
 git commit -m "feat: load and cache db/jwt secrets from Secrets Manager"
 ```
 
@@ -501,7 +502,7 @@ git commit -m "feat: load and cache db/jwt secrets from Secrets Manager"
 
 **Files:**
 - Create: `src/authenticate.js`
-- Test: `test/authenticate.test.js`
+- Test: `src/test/authenticate.test.js`
 
 **Interfaces:**
 - Consumes:
@@ -513,12 +514,12 @@ git commit -m "feat: load and cache db/jwt secrets from Secrets Manager"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/authenticate.test.js`:
+Create `src/test/authenticate.test.js`:
 
 ```js
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { authenticate } = require('../src/authenticate');
+const { authenticate } = require('../authenticate');
 
 function makeDeps({ user = null, passwordMatches = false } = {}) {
   return {
@@ -607,7 +608,7 @@ Expected: PASS — 18 tests passing.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/authenticate.js test/authenticate.test.js
+git add src/authenticate.js src/test/authenticate.test.js
 git commit -m "feat: add core login authentication logic"
 ```
 
@@ -662,7 +663,7 @@ git commit -m "feat: add mysql2 connection pool factory"
 
 **Files:**
 - Create: `src/index.js`
-- Test: `test/index.test.js`
+- Test: `src/test/index.test.js`
 
 **Interfaces:**
 - Consumes: `classifyIdentifier` (Task 3), `createTokenSigner`/`TOKEN_TTL_SECONDS` (Task 4), `createUserRepository` (Task 5), `createSecretsLoader` (Task 6), `authenticate` (Task 7), `createPool` (Task 8).
@@ -670,12 +671,12 @@ git commit -m "feat: add mysql2 connection pool factory"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/index.test.js`:
+Create `src/test/index.test.js`:
 
 ```js
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createHandler } = require('../src/index');
+const { createHandler } = require('../index');
 
 function fakeDeps() {
   return {
@@ -818,7 +819,7 @@ Expected: PASS — 22 tests passing.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/index.js test/index.test.js
+git add src/index.js src/test/index.test.js
 git commit -m "feat: wire lambda handler for the login endpoint"
 ```
 
@@ -1112,6 +1113,8 @@ git commit -m "feat: store db_password and jwt_secret in secrets manager"
 - Consumes: `aws_security_group.lambda` (Task 12), `aws_secretsmanager_secret.auth_lambda` (Task 13), `data.aws_subnet.sub_a`/`sub_b`, `data.aws_db_instance.main` (Task 11).
 - Produces: `aws_lambda_function.auth` (function_name, invoke_arn) — consumed by Task 15's API Gateway integration.
 
+**Note:** tests live under `src/test/` (Tasks 3-9), so `data.archive_file.auth_lambda` excludes that directory — the deployed zip should contain only runtime code and `node_modules`, not the test suite.
+
 - [ ] **Step 1: Create `lambda.tf`**
 
 ```hcl
@@ -1119,6 +1122,7 @@ data "archive_file" "auth_lambda" {
   type        = "zip"
   source_dir  = "${path.module}/src"
   output_path = "${path.module}/build/auth-lambda.zip"
+  excludes    = ["test"]
 }
 
 data "aws_iam_policy_document" "lambda_assume_role" {
@@ -1386,8 +1390,8 @@ secrets.tf                   # secret com db_password e jwt_secret
 lambda.tf                    # iam role, empacotamento (archive_file) e aws_lambda_function
 apigateway.tf                # HTTP API Gateway (POST /login)
 outputs.tf                   # invoke_url / login_url
-src/                         # código do Lambda (Node.js 24)
-test/                        # testes unitários (node:test)
+src/                         # código do Lambda (Node.js 24) + package.json
+src/test/                    # testes unitários (node:test), excluídos do zip de deploy
 ```
 ```
 
