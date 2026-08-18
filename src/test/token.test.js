@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
 const crypto = require('node:crypto');
-const { createTokenSigner, TOKEN_TTL_SECONDS } = require('../src/token');
+const { createTokenSigner, TOKEN_TTL_SECONDS } = require('../token');
 
 test('signs a token with the claims php-open-source-saver/jwt-auth expects', () => {
   const signer = createTokenSigner('test-secret', 'https://api.example.com/login');

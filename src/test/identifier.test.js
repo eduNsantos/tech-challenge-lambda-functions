@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { classifyIdentifier } = require('../src/identifier');
+const { classifyIdentifier } = require('../identifier');
 
 test('classifies an 11-digit CPF as document', () => {
   const result = classifyIdentifier('12345678901');

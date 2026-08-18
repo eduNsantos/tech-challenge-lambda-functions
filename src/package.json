@@ -7,7 +7,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "test": "node --test '../test/*.test.js'"
+    "test": "node --test 'test/*.test.js'"
   },
   "dependencies": {
     "mysql2": "^3.11.0",
