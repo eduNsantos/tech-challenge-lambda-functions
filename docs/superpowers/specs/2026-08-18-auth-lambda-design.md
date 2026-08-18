@@ -157,7 +157,9 @@ outputs.tf      # invoke_url da API
 src/
   index.js      # handler
   package.json  # mysql2, bcryptjs, jsonwebtoken, @aws-sdk/client-secrets-manager
-REQUEST-TO-DATABASE-REPO.md  # instrução para adicionar `identifier` fixo no aws_db_instance do outro repo
+README.md                       # visão geral, como aplicar, variáveis, como testar
+REQUEST-TO-DATABASE-REPO.md     # instrução para adicionar `identifier` fixo no aws_db_instance do outro repo
+REQUEST-TO-APPLICATION-REPO.md  # pendências no tech-challenge-application (DB alvo, JWT_SECRET, tfstate versionado)
 ```
 
 ## Fora de escopo
@@ -184,3 +186,34 @@ REQUEST-TO-DATABASE-REPO.md  # instrução para adicionar `identifier` fixo no a
   usuário (mesma estrutura de claims, exceto `iat`/`exp`/`jti`), e
   confirmar que uma rota protegida (`auth:api`) do Laravel aceita o
   token do Lambda.
+
+## Entregáveis de documentação
+
+- **`README.md`** (raiz deste repo): claro e sucinto, explicando a
+  arquitetura, como aplicar o Terraform, variáveis obrigatórias
+  (`db_password`, `jwt_secret`, etc.), como testar o endpoint depois do
+  deploy, e link para os dois documentos abaixo.
+- **`REQUEST-TO-DATABASE-REPO.md`** (já criado): pendências no
+  `tech-challenge-database` — `identifier` fixo na instância RDS e
+  possível ajuste de ingress no Security Group `rds`.
+- **`REQUEST-TO-APPLICATION-REPO.md`** (novo, a criar): pendências no
+  `tech-challenge-application` para a integração ficar completa:
+  - Apontar `DB_HOST`/`DB_PORT`/`DB_DATABASE`/`DB_USERNAME`/`DB_PASSWORD`
+    do ambiente da aplicação para a RDS do `tech-challenge-database`
+    (hoje a branch `terraform` cria uma RDS própria separada, e o
+    `docker-compose`/k8s local usam outro MySQL) e rodar
+    `php artisan migrate` contra ela, para a tabela `users` existir
+    onde o Lambda vai consultar.
+  - Definir um `JWT_SECRET` real (via `php artisan jwt:secret`) e
+    compartilhar esse valor para ser cadastrado no Secrets Manager
+    deste repositório — sem isso os tokens do Lambda não validam nas
+    rotas protegidas do Laravel.
+  - Remover `infra/terraform.tfstate` da branch `terraform` do
+    controle de versão (`git rm --cached`, adicionar ao
+    `.gitignore`) e considerar rotacionar qualquer segredo que possa
+    ter sido exposto nesse arquivo — risco de segurança independente
+    desta integração.
+  - (Opcional/recomendado) Adicionar suporte a login por `document`
+    (CPF) no próprio `AuthController::login()`, hoje restrito a
+    `email`, para manter paridade entre o login da aplicação e o do
+    Lambda.
