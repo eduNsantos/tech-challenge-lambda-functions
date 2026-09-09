@@ -6,6 +6,7 @@ const { createTokenSigner } = require('./token');
 const { createSecretsLoader } = require('./secretsLoader');
 const { createPool } = require('./db');
 const { authenticate } = require('./authenticate');
+const { createDepsProvider } = require('./depsProvider');
 
 function response(statusCode, body) {
   return {
@@ -35,32 +36,27 @@ function createHandler(getDeps) {
   };
 }
 
-let pool;
-let tokenSigner;
 const secretsLoader = createSecretsLoader(
   new SecretsManagerClient({}),
   process.env.AUTH_SECRET_ID
 );
 
-async function getRealDeps() {
-  const secrets = await secretsLoader.load();
-
-  if (!pool) {
-    pool = createPool({
+const resolveResources = createDepsProvider({
+  secretsLoader,
+  buildPool: (dbPassword) =>
+    createPool({
       host: process.env.DB_HOST,
       port: Number(process.env.DB_PORT || 3306),
       user: process.env.DB_USER,
-      password: secrets.db_password,
+      password: dbPassword,
       database: process.env.DB_NAME,
-    });
-  }
+    }),
+  buildTokenSigner: (jwtSecret) =>
+    createTokenSigner(jwtSecret, process.env.TOKEN_ISSUER || 'tech-challenge-lambda-auth'),
+});
 
-  if (!tokenSigner) {
-    tokenSigner = createTokenSigner(
-      secrets.jwt_secret,
-      process.env.TOKEN_ISSUER || 'tech-challenge-lambda-auth'
-    );
-  }
+async function getRealDeps() {
+  const { pool, tokenSigner } = await resolveResources();
 
   return {
     classifyIdentifier,

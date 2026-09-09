@@ -21,3 +21,8 @@ test('classifies a non-11-digit numeric-looking string as email', () => {
   const result = classifyIdentifier('123456');
   assert.deepEqual(result, { field: 'email', value: '123456' });
 });
+
+test('classifies an email containing exactly 11 digits as email, not document', () => {
+  const result = classifyIdentifier('12345678901@x.com');
+  assert.deepEqual(result, { field: 'email', value: '12345678901@x.com' });
+});
