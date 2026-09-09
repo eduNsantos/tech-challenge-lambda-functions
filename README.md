@@ -44,6 +44,28 @@ Design completo: [`docs/superpowers/specs/2026-08-18-auth-lambda-design.md`](doc
 | `db_password` | Senha do MySQL — **igual** à usada em `tech-challenge-database` |
 | `jwt_secret` | Segredo de assinatura JWT — **igual** ao `JWT_SECRET` da aplicação Laravel |
 
+### Estes valores precisam ser iguais entre repositórios
+
+Estes quatro valores não são uma escolha livre: eles precisam corresponder
+exatamente ao que já está configurado para o banco de dados de produção
+compartilhado e para a aplicação Laravel. Se divergirem, o Lambda passa a
+autenticar contra um banco/usuário diferente (ou assina JWTs com um segredo
+diferente) do que a aplicação espera, e o login falha silenciosamente em
+encontrar os mesmos usuários que a aplicação gerencia — reproduzindo
+exatamente o problema de "login não encontra dados do usuário" que esta
+integração existe para resolver.
+
+- `db_name` e `db_user` precisam ser iguais aos valores usados no
+  ConfigMap `app-config` do repositório `tech-challenge-kubernetes`
+  (`DB_DATABASE` e `DB_USERNAME` lá).
+- `db_password` precisa ser igual ao secret `DB_PASSWORD` do GitHub
+  configurado em `tech-challenge-kubernetes` (usado para autenticar contra
+  a mesma instância RDS compartilhada).
+- `jwt_secret` precisa ser igual ao secret `JWT_SECRET` do GitHub
+  configurado em `tech-challenge-kubernetes` (para que um JWT emitido por
+  este Lambda seja aceito pelo guard JWT `auth:api` da aplicação Laravel,
+  e vice-versa).
+
 Copie [`terraform.tfvars.example`](terraform.tfvars.example) para
 `terraform.tfvars` (já gitignored) e preencha os valores reais — o
 Terraform carrega esse arquivo automaticamente, sem precisar de `-var` em
