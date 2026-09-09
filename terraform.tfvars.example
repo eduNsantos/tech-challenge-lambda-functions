@@ -1,0 +1,13 @@
+# Copie este arquivo para `terraform.tfvars` (gitignored) e preencha os
+# valores reais antes de rodar `terraform apply`. Nunca commite o
+# `terraform.tfvars` com valores reais.
+
+db_name     = "techchallenge"
+db_user     = "techchallenge"
+db_password = "" # igual à senha usada no repo tech-challenge-database
+jwt_secret  = "" # igual ao JWT_SECRET da aplicação Laravel (tech-challenge-application)
+
+# Opcionais — só descomente se precisar mudar os defaults:
+# aws_region    = "us-east-1"
+# db_identifier = "tech-challenge-db"
+# token_issuer  = "tech-challenge-lambda-auth"
