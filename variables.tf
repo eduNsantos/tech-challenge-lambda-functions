@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "db_identifier" {
   description = "Identifier fixo da instância RDS no repositório tech-challenge-database"
   type        = string
-  default     = "tech-challenge-db"
+  default     = "techchallenge-rds"
 }
 
 variable "db_name" {
