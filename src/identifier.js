@@ -1,4 +1,8 @@
 function classifyIdentifier(rawIdentifier) {
+  if (rawIdentifier.includes('@')) {
+    return { field: 'email', value: rawIdentifier };
+  }
+
   const digitsOnly = rawIdentifier.replace(/\D/g, '');
 
   if (digitsOnly.length === 11) {
