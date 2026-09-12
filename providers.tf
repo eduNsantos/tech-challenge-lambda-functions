@@ -1,7 +1,13 @@
 terraform {
   required_version = ">= 1.9.0"
 
-  backend "local" {}
+  backend "s3" {
+    bucket         = "tech-challenge-lambda-functions-477478162709-tfstate"
+    key            = "tech-challenge-lambda-functions/terraform.tfstate"
+    region         = "us-east-1"
+    encrypt        = true
+    use_lockfile   = true
+  }
 
   required_providers {
     aws = {
