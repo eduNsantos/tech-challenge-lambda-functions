@@ -88,6 +88,10 @@ exatamente como travadas em `package-lock.json`. Sem esse passo, o
 falha em runtime com um erro do tipo `Cannot find module 'bcryptjs'`,
 mesmo com o `terraform apply` tendo sido bem-sucedido.
 
+Além disso, o repositório inclui o script [`scripts/build-lambda-package.sh`](scripts/build-lambda-package.sh)
+que executa a instalação e gera o zip do Lambda em `build/auth-lambda.zip`,
+facilitando a validação manual antes do deploy.
+
 Após o apply, o output `login_url` traz a URL completa do endpoint.
 
 ## Testar

@@ -1,8 +1,22 @@
+resource "null_resource" "auth_lambda_deps" {
+  triggers = {
+    package_lock = filemd5("${path.module}/src/package-lock.json")
+    package_json = filemd5("${path.module}/src/package.json")
+  }
+
+  provisioner "local-exec" {
+    command     = "cd ${path.module}/src && npm ci --no-fund --no-audit"
+    interpreter = ["bash", "-c"]
+  }
+}
+
 data "archive_file" "auth_lambda" {
   type        = "zip"
   source_dir  = "${path.module}/src"
   output_path = "${path.module}/build/auth-lambda.zip"
   excludes    = ["test"]
+
+  depends_on = [null_resource.auth_lambda_deps]
 }
 
 data "aws_iam_policy_document" "lambda_assume_role" {
