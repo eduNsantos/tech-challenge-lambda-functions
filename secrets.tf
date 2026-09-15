@@ -1,6 +1,7 @@
 resource "aws_secretsmanager_secret" "auth_lambda" {
-  name        = "tech-challenge/auth-lambda"
-  description = "Credenciais usadas pelo Lambda de autenticacao (db_password, jwt_secret)"
+  name                    = "tech-challenge/auth-lambda"
+  description             = "Credenciais usadas pelo Lambda de autenticacao (db_password, jwt_secret)"
+  recovery_window_in_days = 30
 }
 
 resource "aws_secretsmanager_secret_version" "auth_lambda" {

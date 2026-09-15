@@ -5,8 +5,7 @@ terraform {
     bucket         = "tech-challenge-lambda-functions-477478162709-tfstate"
     key            = "tech-challenge-lambda-functions/terraform.tfstate"
     region         = "us-east-1"
-    encrypt        = true
-    dynamodb_table = "tech-challenge-terraform-locks"
+    use_lockfile   = true
   }
 
   required_providers {
