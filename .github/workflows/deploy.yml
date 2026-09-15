@@ -1,6 +1,9 @@
 name: Test and Deploy Lambda Auth
 
 on:
+  push:
+    branches:
+      - main
   repository_dispatch:
     types: [deploy-lambda-auth]
 
