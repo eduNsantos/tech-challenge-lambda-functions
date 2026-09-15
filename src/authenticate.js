@@ -17,7 +17,7 @@ async function authenticate({ identifier, password }, deps) {
   const user = await deps.userRepository.findByIdentifier(field, value);
 
   if (!user || !deps.comparePassword(trimmedPassword, user.password)) {
-    return { statusCode: 401, body: { message: 'Credenciais inválidas' } };
+    return { statusCode: 401, body: { message: 'Credenciais inválidas', error: 'invalid_credentials' } };
   }
 
   const token = deps.tokenSigner.sign(user.id);
