@@ -54,7 +54,26 @@ jobs:
           terraform_version: "1.9.8"
 
       - name: Terraform init
-        run: terraform init
+        run: |
+          for attempt in 1 2 3; do
+            echo "Running terraform init (attempt ${attempt}/3)"
+            set +e
+            terraform init 2>&1 | tee /tmp/terraform-init.log
+            status=${PIPESTATUS[0]}
+            set -e
+
+            if [ "$status" -eq 0 ]; then
+              break
+            fi
+
+            if grep -q "state data in S3 does not have the expected content" /tmp/terraform-init.log && [ "$attempt" -lt 3 ]; then
+              echo "Detected transient S3/DynamoDB state checksum mismatch. Waiting 90 seconds before retry..."
+              sleep 90
+              continue
+            fi
+
+            exit "$status"
+          done
 
       - name: Terraform apply
         run: terraform apply -auto-approve
