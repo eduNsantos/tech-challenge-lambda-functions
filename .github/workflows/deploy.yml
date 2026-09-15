@@ -3,6 +3,7 @@ name: Test and Deploy Lambda Auth
 on:
   repository_dispatch:
     types: [deploy-lambda-auth]
+
   workflow_dispatch: {}
 
 permissions:
@@ -85,6 +86,14 @@ jobs:
               --query 'DeletedDate' \
               --output text)
 
+            SECRET_ARN=$(aws secretsmanager describe-secret \
+              --secret-id "$SECRET_NAME" \
+              --region "$AWS_REGION" \
+              --query 'ARN' \
+              --output text)
+
+            echo "Secret ARN: $SECRET_ARN"
+
             if [ "$DELETED_DATE" != "None" ] && [ "$DELETED_DATE" != "null" ]; then
               echo "Secret is scheduled for deletion."
               echo "Restoring secret..."
@@ -102,13 +111,14 @@ jobs:
 
             if terraform state show "$TERRAFORM_RESOURCE" >/dev/null 2>&1; then
               echo "Secret is already present in Terraform state."
+
             else
               echo "Secret is NOT present in Terraform state."
-              echo "Importing secret into Terraform..."
+              echo "Importing secret using ARN..."
 
               terraform import \
                 "$TERRAFORM_RESOURCE" \
-                "$SECRET_NAME"
+                "$SECRET_ARN"
 
               echo "Secret imported successfully."
             fi
