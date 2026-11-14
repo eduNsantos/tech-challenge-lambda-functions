@@ -19,43 +19,15 @@ data "archive_file" "auth_lambda" {
   depends_on = [null_resource.auth_lambda_deps]
 }
 
-data "aws_iam_policy_document" "lambda_assume_role" {
-  statement {
-    actions = ["sts:AssumeRole"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["lambda.amazonaws.com"]
-    }
-  }
-}
-
-resource "aws_iam_role" "auth_lambda" {
-  name               = "tech-challenge-auth-lambda"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
-}
-
-resource "aws_iam_role_policy_attachment" "vpc_access" {
-  role       = aws_iam_role.auth_lambda.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
-}
-
-data "aws_iam_policy_document" "lambda_secrets_access" {
-  statement {
-    actions   = ["secretsmanager:GetSecretValue"]
-    resources = [aws_secretsmanager_secret.auth_lambda.arn]
-  }
-}
-
-resource "aws_iam_role_policy" "secrets_access" {
-  name   = "tech-challenge-auth-lambda-secrets-access"
-  role   = aws_iam_role.auth_lambda.id
-  policy = data.aws_iam_policy_document.lambda_secrets_access.json
+# AWS Academy não permite iam:CreateRole; usa a LabRole pré-existente
+# (mesmo padrão do tech-challenge-payment-service).
+data "aws_iam_role" "lab_role" {
+  name = "LabRole"
 }
 
 resource "aws_lambda_function" "auth" {
   function_name    = "tech-challenge-auth-login"
-  role             = aws_iam_role.auth_lambda.arn
+  role             = data.aws_iam_role.lab_role.arn
   runtime          = "nodejs24.x"
   handler          = "index.handler"
   filename         = data.archive_file.auth_lambda.output_path
@@ -78,9 +50,4 @@ resource "aws_lambda_function" "auth" {
       TOKEN_ISSUER   = var.token_issuer
     }
   }
-
-  depends_on = [
-    aws_iam_role_policy_attachment.vpc_access,
-    aws_iam_role_policy.secrets_access,
-  ]
 }
