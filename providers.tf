@@ -2,10 +2,10 @@ terraform {
   required_version = ">= 1.10.0"
 
   backend "s3" {
-    bucket         = "tech-challenge-lambda-functions-477478162709-tfstate"
-    key            = "tech-challenge-lambda-functions/terraform.tfstate"
-    region         = "us-east-1"
-    use_lockfile   = true
+    bucket       = "techchallenge-tfstate-477478162709-eks"
+    key          = "lambda-functions/terraform.tfstate"
+    region       = "us-east-1"
+    use_lockfile = true
   }
 
   required_providers {
